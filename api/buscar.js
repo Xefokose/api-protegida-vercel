@@ -1,28 +1,31 @@
-import { initializeApp } from "firebase/app";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import fs from 'fs';
 
-const firebaseConfig = {
-  apiKey: process.env.FIREBASE_API_KEY,
-  authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.FIREBASE_PROJECT_ID,
-  storageBucket: process.env.FIREBASE_BUCKET,
-  messagingSenderId: process.env.FIREBASE_SENDER_ID,
-  appId: process.env.FIREBASE_APP_ID
-};
+// Caminho da chave
+const serviceAccount = JSON.parse(fs.readFileSync('./chave-firebase.json', 'utf8'));
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+// Inicializa o Firebase Admin
+if (!global._firebaseAppInitialized) {
+  initializeApp({
+    credential: cert(serviceAccount)
+  });
+  global._firebaseAppInitialized = true;
+}
+
+const db = getFirestore();
 
 export default async function handler(req, res) {
   try {
     const dados = [];
-    const querySnapshot = await getDocs(collection(db, "estreias")); // troque "estreias" pelo nome real da sua coleção
-    querySnapshot.forEach((doc) => {
+    const snapshot = await db.collection("estreias").get(); // Substitua pelo nome correto da sua coleção
+    snapshot.forEach(doc => {
       dados.push({ id: doc.id, ...doc.data() });
     });
 
     res.status(200).json(dados);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ erro: "Erro ao buscar dados", detalhe: error.message });
   }
 }
